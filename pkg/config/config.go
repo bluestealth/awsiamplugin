@@ -32,13 +32,13 @@ import (
 )
 
 type AwsIamOptions struct {
-	Region               string
-	ClusterID            string
-	AssumeRoleARN        string
-	AssumeRoleExternalID string
-	SessionName          string
-	ForwardSessionName   bool
-	Persist              clientrest.AuthProviderConfigPersister
+	Region               string                                 `json:"region"          yaml:"region"`
+	ClusterID            string                                 `json:"cluster-id"      yaml:"cluster-id"`
+	AssumeRoleARN        string                                 `json:"role-name"       yaml:"role-name"`
+	AssumeRoleExternalID string                                 `json:"external-id"     yaml:"external-id"`
+	SessionName          string                                 `json:"session-name"    yaml:"session-name"`
+	ForwardSessionName   bool                                   `json:"forward-session" yaml:"forward-session"`
+	Persist              clientrest.AuthProviderConfigPersister `json:"-"               yaml:"-"`
 }
 
 // EKSClusterConfig returns a rest config which uses aws iam credentials
