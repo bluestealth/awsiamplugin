@@ -21,11 +21,14 @@ import (
 	"encoding/base64"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/bluestealth/awsiamplugin/pkg/plugin"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"github.com/aws/aws-sdk-go-v2/service/eks"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 
 	clientrest "k8s.io/client-go/rest"
 	clientapi "k8s.io/client-go/tools/clientcmd/api"
@@ -45,11 +48,43 @@ type AwsIamOptions struct {
 // to authenticate to an EKS cluster
 func EKSClusterConfig(ctx context.Context, session aws.Config, iamOptions AwsIamOptions) (kubeConfig *clientrest.Config, err error) {
 	var client *eks.Client
+	var credentials aws.CredentialsProvider
 	var response *eks.DescribeClusterOutput
 
+	if iamOptions.AssumeRoleARN != "" {
+		var sessionName string
+		stsClient := sts.NewFromConfig(session, func(options *sts.Options) {
+			options.Region = iamOptions.Region
+		})
+
+		if iamOptions.ForwardSessionName {
+			var identity *sts.GetCallerIdentityOutput
+			if identity, err = stsClient.GetCallerIdentity(ctx, &sts.GetCallerIdentityInput{}); err != nil {
+				return
+			}
+			userIDParts := strings.Split(*identity.UserId, ":")
+			if len(userIDParts) == 2 {
+				sessionName = userIDParts[1]
+			}
+		} else if iamOptions.SessionName != "" {
+			sessionName = iamOptions.SessionName
+		}
+
+		credentials = stscreds.NewAssumeRoleProvider(stsClient, iamOptions.AssumeRoleARN, func(stsOptions *stscreds.AssumeRoleOptions) {
+			if sessionName != "" {
+				stsOptions.RoleSessionName = sessionName
+			}
+			if iamOptions.AssumeRoleExternalID != "" {
+				stsOptions.ExternalID = &iamOptions.AssumeRoleExternalID
+			}
+		})
+	}
+
 	client = eks.NewFromConfig(session, func(options *eks.Options) {
+		options.Credentials = credentials
 		options.Region = iamOptions.Region
 	})
+
 	if response, err = client.DescribeCluster(ctx, &eks.DescribeClusterInput{Name: &iamOptions.ClusterID}); err != nil {
 		err = fmt.Errorf("failed to descriibe cluster: %w", err)
 		return

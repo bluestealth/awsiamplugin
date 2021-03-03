@@ -27,7 +27,6 @@ import (
 	"k8s.io/klog/v2"
 
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
 	"sigs.k8s.io/aws-iam-authenticator/pkg/token"
 )
 
@@ -120,17 +119,6 @@ func (i *awsIamKubeAuthPlugin) parseConfig(ctx context.Context, awsIamConfigMap 
 	if i.o.Session, err = config.LoadDefaultConfig(ctx, func(options *config.LoadOptions) error {
 		if i.o.Region != "" {
 			options.Region = i.o.Region
-		}
-		options.AssumeRoleCredentialOptions = func(options *stscreds.AssumeRoleOptions) {
-			if i.o.AssumeRoleExternalID != "" {
-				options.ExternalID = &i.o.AssumeRoleExternalID
-			}
-			if i.o.AssumeRoleARN != "" {
-				options.RoleARN = i.o.AssumeRoleARN
-			}
-			if i.o.SessionName != "" {
-				options.RoleSessionName = i.o.SessionName
-			}
 		}
 		return nil
 	}); err != nil {
